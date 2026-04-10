@@ -1,0 +1,114 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "efficient_track_anything"
+version = "1.0"
+description = "Efficient Track Anything"
+authors = [
+    {name = "Meta AI", email = "yunyang@meta.com"},
+]
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11,<3.12"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Framework :: Pydantic",
+    "Framework :: Pydantic :: 2",
+    "Typing :: Typed",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "cuvis-ai-core>=0.3.0",
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+    "numpy>=1.24.4",
+    "tqdm>=4.66.1",
+    "hydra-core>=1.3.2",
+    "iopath>=0.1.10",
+    "pillow>=9.4.0",
+    "huggingface-hub==0.26.2",
+    "gradio==4.44.0",
+    "gradio_client==1.3.0",
+    "gradio_image_prompter==0.1.0",
+    "imageio>=2.33",
+    "imageio-ffmpeg>=0.5.1",
+    "opencv-python>=4.7.0",
+    "moviepy==1.0.3",
+    "supervision==0.25.0",
+    "Flask>=3.0.3",
+    "pytest>=8.0",
+]
+
+[project.optional-dependencies]
+notebooks = [
+    "matplotlib>=3.9.1",
+    "jupyter>=1.0.0",
+    "opencv-python>=4.7.0",
+    "eva-decord>=0.6.1",
+]
+interactive-demo = [
+    "Flask-Cors>=5.0.0",
+    "av>=13.0.0",
+    "dataclasses-json>=0.6.7",
+    "eva-decord>=0.6.1",
+    "gunicorn>=23.0.0",
+    "imagesize>=1.4.1",
+    "pycocotools>=2.0.8",
+    "strawberry-graphql>=0.243.0",
+]
+dev = [
+    "black==24.2.0",
+    "ruff>=0.8",
+    "mypy>=1.0.0",
+    "fvcore>=0.1.5.post20221221",
+    "pandas>=2.2.2",
+    "scikit-image>=0.24.0",
+    "tensorboard>=2.17.0",
+    "pycocotools>=2.0.8",
+    "tensordict>=0.6.0",
+    "submitit>=1.5.1",
+]
+test = [
+    "pytest>=8.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.10",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sam2*", "efficient_track_anything*", "cuvis_ai_rtsam2*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+]
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = false
+disallow_untyped_defs = false
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
