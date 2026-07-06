@@ -1,0 +1,18 @@
+# Upstream fork tracking for cuvis-ai-rtsam2.
+# The sam2/ and efficient_track_anything/ trees are vendored from the upstream
+# fork below (which itself vendors Meta's SAM2 and EfficientTAM). They are
+# read-only from this fork's perspective: the only local edit is the isolated
+# packaging change in setup.py/pyproject.toml.
+upstream:
+  remote: https://github.com/robrosinc/REALTIME_SAM2
+  branch: main
+last_synced:
+  ref: f50edf7
+  date: "2026-04-10"
+cuvis_ai_plugin_version: "unreleased"
+notes: |
+  - setup.py: the version= kwarg is commented out so setuptools-scm owns the
+    package version; re-apply after any upstream setup.py rewrite.
+  - The RTSAM2 mask-prompt path writes into the camera predictors' private
+    condition_state (_run_single_frame_inference); re-verify after every
+    upstream sync of sam2_camera_predictor.py / efficienttam_camera_predictor.py.

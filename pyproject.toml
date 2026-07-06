@@ -61,6 +61,10 @@ dependencies = [
     # Both camera predictors import cv2. Headless build only -- the GUI build
     # pulls Qt/X11 and breaks headless CI (see plugin-skill dependency landmines).
     "opencv-python-headless>=4.7.0",
+    # The camera predictors torch.compile parts of the model; torch does not
+    # bundle triton on Windows (same platform split as the sam3 plugin).
+    "triton-windows; platform_system == 'Windows'",
+    "triton; platform_system != 'Windows'",
 ]
 
 [project.optional-dependencies]

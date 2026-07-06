@@ -1,0 +1,10 @@
+# Local-path manifest for the rtsam2 plugin (one yaml file = one plugin).
+# `path` resolves relative to this file's directory: ".." is the repo root
+# containing pyproject.toml. For a frozen install use the git-tag form
+# documented in the README once a release tag exists.
+name: rtsam2
+path: ".."
+package_name: "cuvis-ai-rtsam2"
+capabilities:
+  - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2BboxPropagation
+  - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2MaskPropagation

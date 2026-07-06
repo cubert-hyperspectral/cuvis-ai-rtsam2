@@ -596,6 +596,8 @@ dependencies = [
     { name = "torch" },
     { name = "torchvision" },
     { name = "tqdm" },
+    { name = "triton", marker = "sys_platform != 'win32'" },
+    { name = "triton-windows", marker = "sys_platform == 'win32'" },
 ]
 
 [package.optional-dependencies]
@@ -667,6 +669,8 @@ requires-dist = [
     { name = "torch", specifier = ">=2.5.1", index = "https://download.pytorch.org/whl/cu128" },
     { name = "torchvision", specifier = ">=0.20.1", index = "https://download.pytorch.org/whl/cu128" },
     { name = "tqdm", specifier = ">=4.66.1" },
+    { name = "triton", marker = "sys_platform != 'win32'" },
+    { name = "triton-windows", marker = "sys_platform == 'win32'" },
     { name = "twine", marker = "extra == 'dev'", specifier = ">=6.2.0" },
 ]
 provides-extras = ["notebooks", "interactive-demo", "dev"]
@@ -3341,6 +3345,14 @@ source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0f/2c/96f92f3c60387e14cc45aed49487f3486f89ea27106c1b1376913c62abe4/triton-3.6.0-cp311-cp311-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:49df5ef37379c0c2b5c0012286f80174fcf0e073e5ade1ca9a86c36814553651", size = 176081190, upload-time = "2026-01-20T16:16:00.523Z" },
     { url = "https://files.pythonhosted.org/packages/e0/12/b05ba554d2c623bffa59922b94b0775673de251f468a9609bc9e45de95e9/triton-3.6.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:e8e323d608e3a9bfcc2d9efcc90ceefb764a82b99dea12a86d643c72539ad5d3", size = 188214640, upload-time = "2026-01-20T16:00:35.869Z" },
+]
+
+[[package]]
+name = "triton-windows"
+version = "3.7.1.post27"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/f5/0f5eaf48abc0c9900f600dbdfa8139e678aa7d47dc1da51b0541979e96df/triton_windows-3.7.1.post27-cp311-cp311-win_amd64.whl", hash = "sha256:b739bd7d39f919280294d8af172a90aa2f17a4377bfbca2ea30a8afae61d5eaa", size = 49679173, upload-time = "2026-06-21T16:48:02.395Z" },
 ]
 
 [[package]]
