@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 import torch
 from cuvis_ai_core.utils.node_registry import NodeRegistry
@@ -266,6 +267,18 @@ def test_registration_round_trip() -> None:
     assert registry.get("RTSAM2MaskPropagation") is RTSAM2MaskPropagation
     with pytest.raises(KeyError):
         registry.get("RTSAM2TrackerInference")
+
+
+def test_frame_from_tensor_converts_to_uint8_for_upstream() -> None:
+    # Upstream prepare_data divides numpy frames by 255, i.e. it expects uint8
+    # 0-255 input; handing it the port's float [0,1] frames directly leaves the
+    # model tracking on a nearly black image (mask freezes at the seed location).
+    frame = torch.full((1, 4, 6, 3), 0.5, dtype=torch.float32)
+    frame_np, (height, width) = RTSAM2TrackerInference._frame_from_tensor(frame)
+
+    assert frame_np.dtype == np.uint8
+    assert (height, width) == (4, 6)
+    assert int(frame_np[0, 0, 0]) == 128
 
 
 def test_input_specs_declare_rgb_image_port() -> None:

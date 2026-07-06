@@ -28,6 +28,13 @@
 - Replaced the upstream README with a cuvis.ai landing page; the original is preserved as
   `README_original.md`.
 
+### Fixed
+
+- Fixed frame scaling: the upstream camera predictors divide numpy frames by 255, so the node
+  now converts the port's float [0,1] frames to uint8 0-255 before handing them over. Feeding
+  floats directly left the model tracking on a nearly black image, freezing the mask at the
+  seed location with decaying scores.
+
 ### Removed
 
 - Removed the manual shape re-asserts that duplicated the framework's port validation.

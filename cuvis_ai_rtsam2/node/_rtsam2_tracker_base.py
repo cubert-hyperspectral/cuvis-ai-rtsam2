@@ -199,7 +199,13 @@ class RTSAM2TrackerInference(Node):
     ) -> tuple[np.ndarray, tuple[int, int]]:
         frame = rgb_image[0].detach().cpu().to(dtype=torch.float32)
         height, width = int(frame.shape[0]), int(frame.shape[1])
-        return np.asarray(frame.numpy(), dtype=np.float32), (height, width)
+        # The upstream camera predictors divide numpy frames by 255 inside
+        # prepare_data, i.e. they expect uint8 0-255 input. Feeding the port's
+        # float [0,1] frames directly would be divided by 255 a second time,
+        # leaving the model tracking on a nearly black image (the seeded mask
+        # then just replays at its old location with decaying scores).
+        frame_uint8 = (frame.clamp(0.0, 1.0) * 255.0).round().to(dtype=torch.uint8)
+        return np.asarray(frame_uint8.numpy(), dtype=np.uint8), (height, width)
 
     @staticmethod
     def _empty_output(height: int, width: int) -> dict[str, torch.Tensor]:
