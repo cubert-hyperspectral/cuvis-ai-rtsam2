@@ -1,36 +1,53 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "efficient_track_anything"
-version = "1.0"
-description = "Efficient Track Anything"
-authors = [
-    {name = "Meta AI", email = "yunyang@meta.com"},
-]
+name = "cuvis-ai-rtsam2"
+dynamic = ["version"]
+description = "Real-time SAM2 / EfficientTAM streaming tracking as a cuvis.ai plugin package."
 readme = "README.md"
-license = { text = "Apache-2.0" }
 requires-python = ">=3.11,<3.12"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Meta AI" },
+    { name = "Robros Inc." },
+    { name = "Cubert GmbH, Ulm, Germany", email = "cuvis.ai@cubert-gmbh.com" },
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Processing",
     "Topic :: Software Development :: Libraries :: Python Modules",
-    "Framework :: Pydantic",
-    "Framework :: Pydantic :: 2",
     "Typing :: Typed",
     "Operating System :: OS Independent",
 ]
-
+keywords = [
+    "cuvis",
+    "hyperspectral",
+    "SAM2",
+    "efficient-track-anything",
+    "real-time",
+    "video-tracking",
+    "computer-vision",
+    "deep-learning",
+    "plugin",
+]
 dependencies = [
-    "cuvis-ai-core>=0.3.0",
+    # cuvis-ai framework (Node base class, PortSpec, plugin system).
+    # Note: cuvis-ai (node catalog) is NOT needed -- only the core framework.
+    "cuvis-ai-core>=0.10.0",
+    "cuvis-ai-schemas>=0.7.0",
+    # Upstream SAM2 / EfficientTAM runtime dependencies. torch/torchvision are
+    # imported directly by the vendored trees, so keep explicit floors here
+    # (served from the cu128 index via [tool.uv.sources]).
     "torch>=2.5.1",
     "torchvision>=0.20.1",
     "numpy>=1.24.4",
@@ -38,24 +55,23 @@ dependencies = [
     "hydra-core>=1.3.2",
     "iopath>=0.1.10",
     "pillow>=9.4.0",
-    "huggingface-hub==0.26.2",
-    "gradio==4.44.0",
-    "gradio_client==1.3.0",
-    "gradio_image_prompter==0.1.0",
-    "imageio>=2.33",
-    "imageio-ffmpeg>=0.5.1",
-    "opencv-python>=4.7.0",
-    "moviepy==1.0.3",
-    "supervision==0.25.0",
-    "Flask>=3.0.3",
-    "pytest>=8.0",
+    # Lazy-imported by efficient_track_anything/build_efficienttam.py for HF
+    # checkpoint download; loose floor, core's lock decides the resolved version.
+    "huggingface-hub>=0.26",
+    # Both camera predictors import cv2. Headless build only -- the GUI build
+    # pulls Qt/X11 and breaks headless CI (see plugin-skill dependency landmines).
+    "opencv-python-headless>=4.7.0",
 ]
 
 [project.optional-dependencies]
+# NOTE: upstream's gradio demo apps (notebooks/tam_app.py, sam_app.py) have no
+# extra here on purpose: gradio==4.44.0 pins pillow<11.0 while cuvis-ai-core
+# requires pillow>=12.2.0, so the demo stack cannot co-install with the plugin.
+# Run the demos in a separate env built from upstream's own requirements.
 notebooks = [
     "matplotlib>=3.9.1",
     "jupyter>=1.0.0",
-    "opencv-python>=4.7.0",
+    "opencv-python-headless>=4.7.0",
     "eva-decord>=0.6.1",
 ]
 interactive-demo = [
@@ -69,46 +85,167 @@ interactive-demo = [
     "strawberry-graphql>=0.243.0",
 ]
 dev = [
-    "black==24.2.0",
-    "ruff>=0.8",
-    "mypy>=1.0.0",
-    "fvcore>=0.1.5.post20221221",
-    "pandas>=2.2.2",
-    "scikit-image>=0.24.0",
-    "tensorboard>=2.17.0",
-    "pycocotools>=2.0.8",
-    "tensordict>=0.6.0",
-    "submitit>=1.5.1",
-]
-test = [
     "pytest>=8.0",
     "pytest-cov>=4.0",
     "pytest-mock>=3.10",
+    "ruff",
+    "mypy",
+    "interrogate>=1.5.0",
+    # --- Release automation & security ---
+    "twine>=6.2.0",
+    "pip-audit>=2.7.0",
+    "bandit[toml]>=1.7.0",
+    "detect-secrets>=1.4.0",
 ]
+
+[project.urls]
+Homepage = "https://www.cubert-hyperspectral.com/"
+Repository = "https://github.com/cubert-hyperspectral/cuvis-ai-rtsam2"
+Changelog = "https://github.com/cubert-hyperspectral/cuvis-ai-rtsam2/releases"
+Issues = "https://github.com/cubert-hyperspectral/cuvis-ai-rtsam2/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["sam2*", "efficient_track_anything*", "cuvis_ai_rtsam2*"]
 
+[tool.setuptools.package-data]
+# The node resolves model configs from the installed package directories, so
+# the Hydra yaml trees must ship in the wheel.
+sam2 = ["configs/**/*.yaml"]
+efficient_track_anything = ["configs/**/*.yaml"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchvision = { index = "pytorch-cu128" }
+# Local development alternative (uncomment to use local path instead)
+# cuvis-ai-core = { path = "../cuvis-ai-core/cuvis-ai-core", editable = true }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+local_scheme = "node-and-date"
+fallback_version = "0.1.0"
+
+[dependency-groups]
+dev = [
+    "setuptools-scm>=8",
+]
+
 [tool.ruff]
 target-version = "py311"
-line-length = 88
-exclude = [
-    ".git",
-    ".venv",
-    "__pycache__",
-    "build",
-    "dist",
-    "*.egg-info",
+line-length = 100
+# Exclude the vendored upstream trees and repo-local artifacts from ALL ruff
+# processing (format + lint).
+extend-exclude = ["sam2", "efficient_track_anything", "notebooks", "checkpoints", "build"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "W",
+    "I",
+    "B",
+    "UP",
+    "C4",
 ]
+extend-select = [
+    "ANN201",
+    "ANN202",
+    "ANN204",
+]
+ignore = [
+    "ANN401",
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Never lint the vendored upstream trees.
+"sam2/**" = ["ALL"]
+"efficient_track_anything/**" = ["ALL"]
+"tests/**" = [
+    "ANN201",
+    "ANN202",
+    "ANN204",
+]
+
+[tool.pytest.ini_options]
+addopts = "-v -ra --showlocals --strict-markers --tb=short --color=yes"
+testpaths = ["tests"]
+xfail_strict = true
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+norecursedirs = ".* build dist CVS _darcs {arch} *.egg venv .venv .git .hg .bzr .tox __pycache__ node_modules sam2 efficient_track_anything notebooks checkpoints"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore:Module already imported so cannot be rewritten",
+    "ignore:.*num_workers.*:UserWarning",
+]
+markers = [
+    "unit: Unit tests for individual components",
+    "integration: Integration tests across multiple components",
+    "slow: Tests that take significant time to run",
+    "gpu: Tests that require GPU hardware",
+]
+log_cli = false
+log_cli_level = "INFO"
+minversion = "7.0"
+
+[tool.interrogate]
+ignore-init-method = true
+ignore-init-module = false
+ignore-magic = false
+ignore-module = false
+ignore-nested-functions = false
+ignore-nested-classes = false
+ignore-private = false
+ignore-property-decorators = false
+ignore-semiprivate = false
+ignore-setters = false
+fail-under = 80.0
+exclude = [
+    "setup.py",
+    "build",
+    "tests",
+    "sam2",
+    "efficient_track_anything",
+    "notebooks",
+]
+ignore-regex = ["^get$", "^set$", "^main$"]
+verbose = 2
+quiet = false
+whitelist-regex = []
+color = true
+omit-covered-files = false
 
 [tool.mypy]
 python_version = "3.11"
-check_untyped_defs = false
-disallow_untyped_defs = false
-warn_return_any = false
+warn_return_any = true
 warn_unused_configs = true
+disallow_untyped_defs = false
 ignore_missing_imports = true
+exclude = ["tests", "build", "dist", "sam2", "efficient_track_anything", "notebooks"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+# Skip the vendored upstream trees when following imports.
+[[tool.mypy.overrides]]
+module = "sam2.*"
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "efficient_track_anything.*"
+follow_imports = "skip"
+
+[tool.bandit]
+exclude_dirs = ["tests", "sam2", "efficient_track_anything", "notebooks", "build"]
+skips = ["B101"]  # Skip assert_used check

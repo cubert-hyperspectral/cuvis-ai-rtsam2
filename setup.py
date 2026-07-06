@@ -174,7 +174,9 @@ except Exception as e:
 # Setup configuration
 setup(
     name=NAME,
-    version=VERSION,
+    # version is derived from git tags via setuptools-scm (see pyproject.toml);
+    # passing VERSION here would override the scm-derived version.
+    # version=VERSION,
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
