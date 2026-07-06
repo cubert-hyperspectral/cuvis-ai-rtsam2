@@ -12,8 +12,10 @@ Stream lifecycle (one ``forward`` call per frame)::
             ^                                                            |
             |               (mid-stream re-prompt raises) ───────────────┘
             |
-    reset()  clears per-stream state, KEEPS the loaded predictor
-    cleanup() = reset() + drop the predictor (session teardown)
+    reset()   clears per-stream state AND drops the predictor (the upstream
+              predictors leak model state across load_first_frame, so a fresh
+              stream needs a fresh build; the next prompt reloads the model)
+    cleanup() same as reset(); kept as the explicit teardown hook
 """
 
 from __future__ import annotations
@@ -170,23 +172,26 @@ class RTSAM2TrackerInference(Node):
         return moved
 
     def reset(self) -> None:
-        """Reset per-stream state so the node can process a fresh stream.
+        """Reset the node so it can process a fresh stream.
 
         Called automatically by ``Predictor._reset_nodes()`` at the start of
-        each predict run. Keeps the loaded predictor; the next prompt frame
-        goes through ``load_first_frame``, which rebuilds the camera
-        predictor's tracking state from scratch.
+        each predict run. Also releases the loaded predictor: the upstream
+        camera predictors keep model state outside ``condition_state`` that
+        ``load_first_frame`` does not rebuild (a second seed on a reused
+        predictor returns empty masks on real weights), so a fresh stream
+        needs a fresh predictor build. The next prompt frame triggers the
+        rebuild via ``_ensure_model``.
         """
         self._stream_frame_idx = 0
         self._tracking_started = False
         self._ext_to_int = {}
         self._int_to_ext = {}
-
-    def cleanup(self) -> None:
-        """Release the loaded predictor on pipeline/session teardown."""
-        self.reset()
         self._predictor = None
         self._maybe_clear_cuda_cache()
+
+    def cleanup(self) -> None:
+        """Release all stream state and the loaded predictor on teardown."""
+        self.reset()
 
     @staticmethod
     def _frame_from_tensor(

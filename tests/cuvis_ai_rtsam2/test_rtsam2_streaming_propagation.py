@@ -302,9 +302,9 @@ def test_forward_binds_inputs_by_port_name() -> None:
     assert result["mask"].shape == (1, 10, 12)
 
 
-def test_reset_starts_fresh_stream_with_same_predictor() -> None:
+def test_reset_drops_predictor_and_allows_a_fresh_stream() -> None:
     node = RTSAM2MaskPropagation(model_type="sam2", name="test_reset_fresh_stream")
-    predictor = _attach_mock_predictor(node, family="sam2")
+    first_predictor = _attach_mock_predictor(node, family="sam2")
 
     first_mask = torch.zeros((1, 10, 12), dtype=torch.int32)
     first_mask[:, 2:5, 4:8] = 7
@@ -317,14 +317,18 @@ def test_reset_starts_fresh_stream_with_same_predictor() -> None:
     assert node._stream_frame_idx == 0
     assert node._ext_to_int == {}
     assert node._int_to_ext == {}
-    assert node._predictor is predictor
+    # The upstream predictors keep model state outside condition_state that
+    # load_first_frame does not rebuild, so reset() must drop the predictor.
+    assert node._predictor is None
 
+    second_predictor = _attach_mock_predictor(node, family="sam2")
     second_mask = torch.zeros((1, 10, 12), dtype=torch.int32)
     second_mask[:, 6:8, 2:5] = 9
     result = node.forward(_random_rgb(), mask=second_mask)
 
     assert result["object_ids"].tolist() == [[9]]
-    assert predictor.load_first_frame.call_count == 2
+    assert second_predictor is not first_predictor
+    assert second_predictor.load_first_frame.call_count == 1
 
 
 def test_cleanup_releases_predictor_and_is_idempotent() -> None:
