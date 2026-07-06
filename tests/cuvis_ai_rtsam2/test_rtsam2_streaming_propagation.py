@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 from cuvis_ai_core.utils.node_registry import NodeRegistry
+from cuvis_ai_schemas.enums import NodeCategory, NodeTag
 
 from cuvis_ai_rtsam2 import register_all_nodes
 from cuvis_ai_rtsam2.node import (
@@ -15,7 +16,9 @@ from cuvis_ai_rtsam2.node import (
     RTSAM2MaskPropagation,
     RTSAM2TrackerInference,
 )
-from cuvis_ai_rtsam2.node import rtsam2_streaming_propagation as rtsam2_module
+from cuvis_ai_rtsam2.node import _rtsam2_tracker_base as rtsam2_base
+
+pytestmark = pytest.mark.unit
 
 
 def _make_logits_for_ids(
@@ -52,7 +55,7 @@ class _MockCameraPredictor:
             side_effect=self._run_single_frame_inference_impl
         )
 
-    def to(self, device: str | torch.device) -> "_MockCameraPredictor":
+    def to(self, device: str | torch.device) -> _MockCameraPredictor:
         del device
         return self
 
@@ -238,7 +241,7 @@ def _materialize_variant_layout(
     include_checkpoint: bool = True,
 ) -> tuple[Path, Path, Path]:
     repo_root = tmp_path / "cuvis-ai-rtsam2"
-    spec = rtsam2_module._MODEL_VARIANT_REGISTRY[variant]
+    spec = rtsam2_base._MODEL_VARIANT_REGISTRY[variant]
     package_root = repo_root / ("sam2" if spec.family == "sam2" else "efficient_track_anything")
     config_path = package_root / spec.config_name
     if include_config:
@@ -258,8 +261,103 @@ def test_registration_round_trip() -> None:
     count = register_all_nodes()
     registry = NodeRegistry()
 
-    assert count >= 3
+    assert count == 2
     assert registry.get("RTSAM2BboxPropagation") is RTSAM2BboxPropagation
+    assert registry.get("RTSAM2MaskPropagation") is RTSAM2MaskPropagation
+    with pytest.raises(KeyError):
+        registry.get("RTSAM2TrackerInference")
+
+
+def test_input_specs_declare_rgb_image_port() -> None:
+    for node_cls in (RTSAM2TrackerInference, RTSAM2BboxPropagation, RTSAM2MaskPropagation):
+        assert "rgb_image" in node_cls.INPUT_SPECS
+        assert "rgb_frame" not in node_cls.INPUT_SPECS
+
+
+def test_palette_metadata_uses_schema_enums() -> None:
+    assert RTSAM2BboxPropagation._category is NodeCategory.MODEL
+    assert RTSAM2MaskPropagation._category is NodeCategory.MODEL
+    assert NodeTag.MASK in RTSAM2MaskPropagation._tags
+    assert NodeTag.BBOX in RTSAM2BboxPropagation._tags
+    assert NodeTag.BBOX not in RTSAM2MaskPropagation._tags
+
+
+def test_forward_binds_inputs_by_port_name() -> None:
+    bbox_node = RTSAM2BboxPropagation(model_type="efficienttam", name="test_kwarg_bbox")
+    bbox_node._ensure_model = MagicMock()
+    result = bbox_node.forward(
+        rgb_image=_random_rgb(),
+        bboxes=None,
+        frame_id=torch.tensor([0], dtype=torch.int64),
+    )
+    assert result["mask"].shape == (1, 10, 12)
+
+    mask_node = RTSAM2MaskPropagation(model_type="sam2", name="test_kwarg_mask")
+    mask_node._ensure_model = MagicMock()
+    result = mask_node.forward(
+        rgb_image=_random_rgb(),
+        mask=None,
+        frame_id=torch.tensor([0], dtype=torch.int64),
+    )
+    assert result["mask"].shape == (1, 10, 12)
+
+
+def test_reset_starts_fresh_stream_with_same_predictor() -> None:
+    node = RTSAM2MaskPropagation(model_type="sam2", name="test_reset_fresh_stream")
+    predictor = _attach_mock_predictor(node, family="sam2")
+
+    first_mask = torch.zeros((1, 10, 12), dtype=torch.int32)
+    first_mask[:, 2:5, 4:8] = 7
+    node.forward(_random_rgb(), mask=first_mask)
+    node.forward(_random_rgb())
+
+    node.reset()
+
+    assert node._tracking_started is False
+    assert node._stream_frame_idx == 0
+    assert node._ext_to_int == {}
+    assert node._int_to_ext == {}
+    assert node._predictor is predictor
+
+    second_mask = torch.zeros((1, 10, 12), dtype=torch.int32)
+    second_mask[:, 6:8, 2:5] = 9
+    result = node.forward(_random_rgb(), mask=second_mask)
+
+    assert result["object_ids"].tolist() == [[9]]
+    assert predictor.load_first_frame.call_count == 2
+
+
+def test_cleanup_releases_predictor_and_is_idempotent() -> None:
+    node = RTSAM2MaskPropagation(model_type="sam2", name="test_cleanup_releases")
+    _attach_mock_predictor(node, family="sam2")
+
+    prompt_mask = torch.zeros((1, 10, 12), dtype=torch.int32)
+    prompt_mask[:, 2:5, 4:8] = 5
+    node.forward(_random_rgb(), mask=prompt_mask)
+    ensure_model_calls = node._ensure_model.call_count
+
+    node.cleanup()
+    node.cleanup()
+
+    assert node._predictor is None
+    assert node._tracking_started is False
+
+    result = node.forward(_random_rgb())
+    assert torch.count_nonzero(result["mask"]).item() == 0
+    assert result["object_ids"].shape == (1, 0)
+    assert node._ensure_model.call_count == ensure_model_calls
+
+
+def test_midstream_mask_prompt_raises() -> None:
+    node = RTSAM2MaskPropagation(model_type="sam2", name="test_midstream_prompt")
+    _attach_mock_predictor(node, family="sam2")
+
+    prompt_mask = torch.zeros((1, 10, 12), dtype=torch.int32)
+    prompt_mask[:, 2:5, 4:8] = 3
+    node.forward(_random_rgb(), mask=prompt_mask)
+
+    with pytest.raises(ValueError, match="Mid-stream re-prompting"):
+        node.forward(_random_rgb(), mask=prompt_mask)
 
 
 def test_default_model_type_resolves_to_efficienttam_s() -> None:

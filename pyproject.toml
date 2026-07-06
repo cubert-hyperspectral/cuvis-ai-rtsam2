@@ -139,8 +139,15 @@ dev = [
 target-version = "py311"
 line-length = 100
 # Exclude the vendored upstream trees and repo-local artifacts from ALL ruff
-# processing (format + lint).
-extend-exclude = ["sam2", "efficient_track_anything", "notebooks", "checkpoints", "build"]
+# processing (format + lint). setup.py is upstream's CUDA-extension build shim.
+extend-exclude = [
+    "sam2",
+    "efficient_track_anything",
+    "notebooks",
+    "checkpoints",
+    "build",
+    "setup.py",
+]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -209,9 +216,11 @@ ignore-magic = false
 ignore-module = false
 ignore-nested-functions = false
 ignore-nested-classes = false
-ignore-private = false
+# Underscore-prefixed helpers on the tracker base are exempt; the public node
+# surface (classes, forward, reset, cleanup, to) must stay documented.
+ignore-private = true
 ignore-property-decorators = false
-ignore-semiprivate = false
+ignore-semiprivate = true
 ignore-setters = false
 fail-under = 80.0
 exclude = [
