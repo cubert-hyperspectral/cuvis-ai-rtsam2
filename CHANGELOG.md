@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## 0.1.0 - 2026-07-07
 
 - Added the `cuvis_ai_rtsam2` plugin package with the `RTSAM2BboxPropagation` and `RTSAM2MaskPropagation` streaming tracker nodes (shared `RTSAM2TrackerInference` base) wrapping the vendored SAM2.1 / EfficientTAM camera predictors: prompt once on the first frame (bbox list or int32 label-map mask), then track frame by frame; pure-tensor-mocked tests alongside.
 - Added the `efficienttam_s` / `efficienttam_s_512x512` model configs missing from the vendored upstream tree.
