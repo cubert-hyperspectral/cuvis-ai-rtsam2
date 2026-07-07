@@ -1,0 +1,217 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "cuvis_ai_rtsam2/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/*.yml"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "codecov.yml"
+      - ".secrets.baseline"
+  pull_request:
+    branches: [main]
+    paths:
+      - "cuvis_ai_rtsam2/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/*.yml"
+      - "README.md"
+      - "CHANGELOG.md"
+      - "codecov.yml"
+      - ".secrets.baseline"
+
+# Cancel in-progress runs when new commit pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history for setuptools-scm
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Run tests with coverage
+        run: |
+          uv run pytest tests/ \
+            -m "not slow and not gpu" \
+            --cov=cuvis_ai_rtsam2 \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            -v
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  lock-guard:
+    name: uv.lock cu128 torch guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Verify torch/torchvision stay pinned to the cu128 index
+        run: |
+          # A plain `uv lock` that loses the [tool.uv.sources] cu128 pins
+          # silently resolves CPU wheels from PyPI. Fail the PR instead.
+          for pkg in torch torchvision; do
+            if ! awk -v pkg="$pkg" '$0 == "name = \"" pkg "\"" {found=1} found && /^source = / {print; exit}' uv.lock \
+                | grep -q 'download.pytorch.org/whl/cu128'; then
+              echo "::error::uv.lock: $pkg is not resolved from the pytorch-cu128 index (CPU-wheel regression)."
+              exit 1
+            fi
+          done
+          echo "uv.lock: torch/torchvision resolved from the cu128 index."
+
+  lint:
+    name: Linting & Style
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Run ruff format check
+        run: uv run ruff format --check .
+
+      - name: Run ruff linter
+        run: uv run ruff check .
+
+      - name: Check docstring coverage
+        run: |
+          uv run interrogate -v cuvis_ai_rtsam2/
+          # Requires 80%+ coverage (configured in pyproject.toml)
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Run pip-audit for vulnerabilities
+        run: |
+          # CVE-2025-3000 (torch): no fixed release exists.
+          uv run pip-audit --desc on --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2025-3000
+
+      - name: Run detect-secrets
+        run: |
+          uv run detect-secrets scan \
+            --exclude-files '\.lock$|\.egg-info|\.pyc$|site/|\.git/|\.pytest_cache|sam2/|efficient_track_anything/|notebooks/|checkpoints/' \
+            --baseline .secrets.baseline
+
+      - name: Run bandit security linter
+        run: |
+          uv run bandit -r cuvis_ai_rtsam2/ -c pyproject.toml
+
+  typecheck:
+    name: Type Checking
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Run mypy
+        run: uv run mypy --package cuvis_ai_rtsam2
+        continue-on-error: true  # Adoption phase
+
+  build-and-validate:
+    name: Build & Validate Package
+    needs: [test, lock-guard, lint, security, typecheck]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Full history for setuptools-scm
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Build package
+        run: |
+          rm -rf dist/ build/ *.egg-info/
+          uv build
+
+      - name: Validate with twine
+        run: uv run twine check dist/*
+
+      - name: List package contents
+        run: |
+          ls -lh dist/
+          tar tzf dist/*.tar.gz | head -20

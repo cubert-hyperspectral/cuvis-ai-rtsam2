@@ -1,0 +1,88 @@
+# Real Time Segment Anything 2
+
+This repository was initially forked from https://github.com/Gy920/segment-anything-2-real-time
+
+Building upon the original camera_predictor, we have implemented a temp_mem sliding window and enabled real-time deletion of object masks during tracking. 
+
+<table>
+  <tr>
+    <td>
+      <img src="media/video1.gif" alt="Demo video 1" width="100%" />
+    </td>
+    <td>
+      <img src="media/video2.gif" alt="Demo video 2" width="100%" />
+    </td>
+  </tr>
+</table>
+
+
+
+## Usage
+python 3.10 & pytorch 2.6.0 & CUDA version 12.4 verified
+
+For MPS see [issue #5](https://github.com/robrosinc/REALTIME_SAM2/issues/5) for details
+
+### 1. Installation
+
+```bash
+git clone https://github.com/robrosinc/REALTIME_SAM2.git
+cd REALTIME_SAM2
+conda create -n rtsam2 python=3.10
+conda activate rtsam2
+pip install -e .
+```
+### 2. Download Checkpoints
+
+```bash
+cd checkpoints
+./download_checkpoints.sh
+```
+
+or EfficientTAM checkpoints are available at the [Hugging Face Space](https://huggingface.co/yunyangx/efficient-track-anything/tree/main).
+
+### 3. Run tam_app.py inside 'notebooks' folder
+
+
+## Performance
+On a single 4070ti for inference,
+
+sam2.1_hiera_tiny.pt takes 0.1 seconds for prompted frames / 0.08 seconds for non prompted frames.
+
+efficienttam_ti_512x512.pt takes 0.025 seconds for prompted frames / 0.02 seconds for non prompted frames.
+
+While tam is faster, using sam outputs masks with better quality.
+
+
+## License
+Efficient track anything checkpoints and codebase are licensed under [Apache 2.0](./LICENSE).
+RobrosInc follows the requirements of Apache 2.0.
+
+## Acknowledgement
+Thank you to all the developers at Meta and github for contributing such an exciting project open source. 
+
++ [SAM2](https://github.com/facebookresearch/sam2)
++ [EfficientTAM](https://github.com/yformer/EfficientTAM)
++ [segment-anything-2-real-time](https://github.com/Gy920/segment-anything-2-real-time)
+
+If you're using this repo in your research or applications, please cite EfficientTAM using this BibTeX:
+```bibtex
+
+
+@article{xiong2024efficienttam,
+  title={Efficient Track Anything},
+  author={Yunyang Xiong, Chong Zhou, Xiaoyu Xiang, Lemeng Wu, Chenchen Zhu, Zechun Liu, Saksham Suri, Balakrishnan Varadarajan, Ramya Akula, Forrest Iandola, Raghuraman Krishnamoorthi, Bilge Soran, Vikas Chandra},
+  journal={preprint arXiv:2411.18933},
+  year={2024}
+}
+```
+
+## Dev Notes
+We have enabled real-time addition of multiple objects.
+
+April 07 2025 / reset button has been added, code cleanup, comments translated
+
+April 17 2025 / preapring for modification (tracking with output_dict_per_obj to improve memory)
+
+April 29 2025 / MPS for MacOS added thanks to [@danydev](https://github.com/danydev)
+
+August 18 2025 / bounding box input enabled, text input is under development

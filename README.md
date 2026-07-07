@@ -1,88 +1,110 @@
-# Real Time Segment Anything 2
+![image](https://raw.githubusercontent.com/cubert-hyperspectral/cuvis.sdk/main/branding/logo/banner.png)
 
-This repository was initially forked from https://github.com/Gy920/segment-anything-2-real-time
+# CUVIS.AI RTSAM2
 
-Building upon the original camera_predictor, we have implemented a temp_mem sliding window and enabled real-time deletion of object masks during tracking. 
+This repository provides real-time SAM2 / EfficientTAM streaming tracking as a cuvis.ai plugin,
+enabling prompt-seeded object tracking pipelines that process one frame per step. It is a fork of
+[robrosinc/REALTIME_SAM2](https://github.com/robrosinc/REALTIME_SAM2) (which vendors Meta's SAM2
+and EfficientTAM) and is maintained by Cubert GmbH as part of the cuvis.ai ecosystem.
 
-<table>
-  <tr>
-    <td>
-      <img src="media/video1.gif" alt="Demo video 1" width="100%" />
-    </td>
-    <td>
-      <img src="media/video2.gif" alt="Demo video 2" width="100%" />
-    </td>
-  </tr>
-</table>
+## Platform
 
+cuvis.ai is split across multiple repositories:
 
+| Repository | Role |
+|---|---|
+| [cuvis-ai-core](https://github.com/cubert-hyperspectral/cuvis-ai-core) | Framework — base `Node` class, pipeline orchestration, services, and plugin system |
+| [cuvis-ai-schemas](https://github.com/cubert-hyperspectral/cuvis-ai-schemas) | Shared schema definitions and generated types |
+| [cuvis-ai](https://github.com/cubert-hyperspectral/cuvis-ai) | Node catalog and end-user pipeline examples |
+| **cuvis-ai-rtsam2** (this repo) | RTSAM2 plugin — cuvis.ai nodes for real-time prompt-seeded tracking |
 
-## Usage
-python 3.10 & pytorch 2.6.0 & CUDA version 12.4 verified
+## Nodes
 
-For MPS see [issue #5](https://github.com/robrosinc/REALTIME_SAM2/issues/5) for details
+| Node | Description |
+|---|---|
+| `RTSAM2BboxPropagation` | Bounding-box prompt seeding, then per-frame streaming tracking |
+| `RTSAM2MaskPropagation` | Label-map (mask) prompt seeding, then per-frame streaming tracking |
 
-### 1. Installation
+Both nodes seed once per stream: prompts are applied on the first prompt frame, subsequent
+frames are tracked. `reset()` (driven automatically by `Predictor` between runs) starts a
+fresh stream; it also releases the loaded predictor, which is rebuilt on the next prompt
+frame. Mid-stream re-prompting raises.
+
+Supported `model_type` values: `efficienttam` (alias for `efficienttam_s`),
+`efficienttam_s`, `efficienttam_s_512x512`, `efficienttam_ti`, `efficienttam_ti_512x512`,
+`sam2` (alias for `sam2.1_hiera_t`), `sam2.1_hiera_t`, `sam2.1_hiera_s`, `sam2.1_hiera_b+`,
+`sam2.1_hiera_l`.
+
+## Checkpoints
+
+Model weights are not downloaded at runtime. Place them under `checkpoints/` (or pass an
+absolute `model_dir` hparam — recommended for installed, non-editable deployments):
+
+- EfficientTAM: `checkpoints/download_checkpoints.sh` (Hugging Face)
+- SAM2.1: <https://github.com/facebookresearch/sam2#download-checkpoints>
+
+## Quick Start
+
+For local development in this repository:
 
 ```bash
-git clone https://github.com/robrosinc/REALTIME_SAM2.git
-cd REALTIME_SAM2
-conda create -n rtsam2 python=3.10
-conda activate rtsam2
-pip install -e .
+git clone https://github.com/cubert-hyperspectral/cuvis-ai-rtsam2.git
+cd cuvis-ai-rtsam2
+uv sync --extra dev
 ```
-### 2. Download Checkpoints
+
+For cuvis.ai usage, see the RTSAM2 mask-propagation pipelines in
+[cuvis-ai](https://github.com/cubert-hyperspectral/cuvis-ai) under
+`cuvis_ai/configs/pipeline/rtsam2/`.
+
+## Plugin manifest
+
+One yaml file is one plugin. Local-path manifest (development; this repo ships one at
+[cuvis_ai_rtsam2/plugins.yaml](cuvis_ai_rtsam2/plugins.yaml)):
+
+```yaml
+name: rtsam2
+path: "../cuvis-ai-rtsam2"
+capabilities:
+  - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2BboxPropagation
+  - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2MaskPropagation
+```
+
+Git-tag manifest (frozen, reproducible installs — available once the first release tag exists):
+
+```yaml
+name: rtsam2
+repo: "https://github.com/cubert-hyperspectral/cuvis-ai-rtsam2.git"
+tag: "v0.1.0"
+package_name: "cuvis-ai-rtsam2"
+capabilities:
+  - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2BboxPropagation
+  - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2MaskPropagation
+```
+
+Verify a manifest resolves:
 
 ```bash
-cd checkpoints
-./download_checkpoints.sh
+uv run python -c "from cuvis_ai_core.utils.node_registry import NodeRegistry; r = NodeRegistry(); r.register_plugin('cuvis_ai_rtsam2/plugins.yaml'); print(r.list_plugins())"
 ```
 
-or EfficientTAM checkpoints are available at the [Hugging Face Space](https://huggingface.co/yunyangx/efficient-track-anything/tree/main).
+## Upstream demos
 
-### 3. Run tam_app.py inside 'notebooks' folder
+The upstream gradio demo apps (`notebooks/tam_app.py`, `notebooks/sam_app.py`) are not
+installable alongside this plugin: gradio 4.44 pins `pillow<11` while cuvis-ai-core requires
+`pillow>=12.2`. Run them in a separate environment built from upstream's own requirements (see
+[README_original.md](README_original.md)). The `notebooks` extra ships headless OpenCV; demos
+expecting GUI OpenCV features are best-effort.
 
+## Links
 
-## Performance
-On a single 4070ti for inference,
+- **Documentation:** https://docs.cuvis.ai/latest/
+- **Website:** https://www.cubert-hyperspectral.com/
+- **Support:** http://support.cubert-hyperspectral.com/
+- **Issues:** https://github.com/cubert-hyperspectral/cuvis-ai-rtsam2/issues
+- **Changelog:** [CHANGELOG.md](CHANGELOG.md)
+- **Original REALTIME_SAM2 README:** [README_original.md](README_original.md)
 
-sam2.1_hiera_tiny.pt takes 0.1 seconds for prompted frames / 0.08 seconds for non prompted frames.
+---
 
-efficienttam_ti_512x512.pt takes 0.025 seconds for prompted frames / 0.02 seconds for non prompted frames.
-
-While tam is faster, using sam outputs masks with better quality.
-
-
-## License
-Efficient track anything checkpoints and codebase are licensed under [Apache 2.0](./LICENSE).
-RobrosInc follows the requirements of Apache 2.0.
-
-## Acknowledgement
-Thank you to all the developers at Meta and github for contributing such an exciting project open source. 
-
-+ [SAM2](https://github.com/facebookresearch/sam2)
-+ [EfficientTAM](https://github.com/yformer/EfficientTAM)
-+ [segment-anything-2-real-time](https://github.com/Gy920/segment-anything-2-real-time)
-
-If you're using this repo in your research or applications, please cite EfficientTAM using this BibTeX:
-```bibtex
-
-
-@article{xiong2024efficienttam,
-  title={Efficient Track Anything},
-  author={Yunyang Xiong, Chong Zhou, Xiaoyu Xiang, Lemeng Wu, Chenchen Zhu, Zechun Liu, Saksham Suri, Balakrishnan Varadarajan, Ramya Akula, Forrest Iandola, Raghuraman Krishnamoorthi, Bilge Soran, Vikas Chandra},
-  journal={preprint arXiv:2411.18933},
-  year={2024}
-}
-```
-
-## Dev Notes
-We have enabled real-time addition of multiple objects.
-
-April 07 2025 / reset button has been added, code cleanup, comments translated
-
-April 17 2025 / preapring for modification (tracking with output_dict_per_obj to improve memory)
-
-April 29 2025 / MPS for MacOS added thanks to [@danydev](https://github.com/danydev)
-
-August 18 2025 / bounding box input enabled, text input is under development
+See [LICENSE](LICENSE) for repository licensing details.
