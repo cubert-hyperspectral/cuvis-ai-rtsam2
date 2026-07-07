@@ -4,6 +4,13 @@
 
 ### Added
 
+- Added the `cuvis_ai_rtsam2` integration package with the streaming tracker nodes
+  `RTSAM2BboxPropagation` and `RTSAM2MaskPropagation` (shared `RTSAM2TrackerInference` base)
+  wrapping the vendored SAM2.1 and EfficientTAM camera predictors: prompt once on the first
+  frame (bbox list or int32 label-map mask), then track frame by frame. Pure-tensor-mocked
+  test suite alongside.
+- Added the `efficienttam_s` / `efficienttam_s_512x512` model configs missing from the
+  vendored upstream tree.
 - Added `reset()` and `cleanup()` to the tracker base (driven by `Predictor` between runs).
   Both release the loaded predictor: the upstream camera predictors keep model state outside
   `condition_state` that `load_first_frame` does not rebuild, so a fresh stream needs a fresh
@@ -13,6 +20,8 @@
   asserts it resolves exactly the concrete nodes.
 - Added CI (test, lint, security, typecheck, build, uv.lock cu128 torch guard), a tag-driven
   release workflow, and the plugin-vs-core dependency compatibility workflow.
+- Added contributor docs (`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`), a codecov config, and a
+  detect-secrets baseline.
 - Added `.upstream-sync.yml` recording the upstream fork state.
 
 ### Changed
