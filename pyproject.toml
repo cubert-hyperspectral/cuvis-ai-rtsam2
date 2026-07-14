@@ -44,7 +44,7 @@ dependencies = [
     # cuvis-ai framework (Node base class, PortSpec, plugin system).
     # Note: cuvis-ai (node catalog) is NOT needed -- only the core framework.
     "cuvis-ai-core>=0.10.0",
-    "cuvis-ai-schemas>=0.7.0",
+    "cuvis-ai-schemas>=0.8.0",
     # Upstream SAM2 / EfficientTAM runtime dependencies. torch/torchvision are
     # imported directly by the vendored trees, so keep explicit floors here
     # (served from the cu128 index via [tool.uv.sources]).
