@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+- The EfficientTAM checkpoint now resolves from the shared HuggingFace cache when it is absent from the checkout, so the sandboxed runtime loads a weight provisioned out of band (`download-model efficienttam_s`) offline instead of failing. It is a pure cache lookup (never a download); an explicit `model_dir` still takes precedence as a deterministic override, and families with no single canonical HF repo (SAM2.1) are unaffected. The missing-asset guidance now points at the shared-cache provisioning path too.
+
 ## 0.1.0 - 2026-07-07
 
 - Added the `cuvis_ai_rtsam2` plugin package with the `RTSAM2BboxPropagation` and `RTSAM2MaskPropagation` streaming tracker nodes (shared `RTSAM2TrackerInference` base) wrapping the vendored SAM2.1 / EfficientTAM camera predictors: prompt once on the first frame (bbox list or int32 label-map mask), then track frame by frame; pure-tensor-mocked tests alongside.
