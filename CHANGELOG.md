@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.0 - 2026-07-17
+
+- The EfficientTAM checkpoint now resolves from the shared HuggingFace cache when it is absent from the checkout, so the sandboxed runtime loads a weight provisioned out of band (`download-model efficienttam_s`) offline instead of failing. It is a pure cache lookup (never a download); an explicit `model_dir` still takes precedence as a deterministic override, and families with no single canonical HF repo (SAM2.1) are unaffected. The missing-asset guidance now points at the shared-cache provisioning path too.
+- Require `cuvis-ai-schemas>=0.8.0` and `cuvis-ai-core>=0.11.2`, adopting the released framework versions. Core 0.11.2's floors transitively pull the security-fixed `click` 8.4.2 (PYSEC-2026-2132) and `pillow` 12.3.0 (PYSEC-2026-2253/2254/2255/2256/2257/3451/3452/3453) into the lock.
+- Ignored PYSEC-2026-3447 (setuptools, fixed only in 83.0.0) in the pip-audit step: torch 2.11 (cu128) caps setuptools below the fix, so it needs a torch upgrade.
+
+## 0.1.0 - 2026-07-07
+
 ## 0.1.0 - 2026-07-07
 
 - Added the `cuvis_ai_rtsam2` plugin package with the `RTSAM2BboxPropagation` and `RTSAM2MaskPropagation` streaming tracker nodes (shared `RTSAM2TrackerInference` base) wrapping the vendored SAM2.1 / EfficientTAM camera predictors: prompt once on the first frame (bbox list or int32 label-map mask), then track frame by frame; pure-tensor-mocked tests alongside.
