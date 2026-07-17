@@ -146,7 +146,9 @@ jobs:
       - name: Run pip-audit for vulnerabilities
         run: |
           # CVE-2025-3000 (torch): no fixed release exists.
-          uv run pip-audit --desc on --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2025-3000
+          # PYSEC-2026-3447 (setuptools): fixed in 83.0.0, but torch 2.11 (cu128) caps setuptools
+          # below that, so the fix needs a torch upgrade; deferred (macOS-only sdist-packing issue).
+          uv run pip-audit --desc on --skip-editable --ignore-vuln PYSEC-2022-42969 --ignore-vuln CVE-2025-3000 --ignore-vuln PYSEC-2026-3447
 
       - name: Run detect-secrets
         run: |
