@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.2.1 - 2026-08-20
+
+- Documented the torch cu128 index tables as local-development-only: installs of this package as a git or registry dependency never read them, and composed child environments mirror the host's torch build (cuvis-ai-core >= 0.12.1).
+
 ## 0.2.0 - 2026-07-17
 
 - The EfficientTAM checkpoint now resolves from the shared HuggingFace cache when it is absent from the checkout, so the sandboxed runtime loads a weight provisioned out of band (`download-model efficienttam_s`) offline instead of failing. It is a pure cache lookup (never a download); an explicit `model_dir` still takes precedence as a deterministic override, and families with no single canonical HF repo (SAM2.1) are unaffected. The missing-asset guidance now points at the shared-cache provisioning path too.
