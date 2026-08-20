@@ -46,8 +46,11 @@ dependencies = [
     "cuvis-ai-core>=0.11.2",
     "cuvis-ai-schemas>=0.8.0",
     # Upstream SAM2 / EfficientTAM runtime dependencies. torch/torchvision are
-    # imported directly by the vendored trees, so keep explicit floors here
-    # (served from the cu128 index via [tool.uv.sources]).
+    # imported directly by the vendored trees, so keep explicit floors here and
+    # keep the two ABI-matched (same-build) with each other. The cu128 index
+    # ([tool.uv.sources]) applies only to local development of this repo;
+    # composed child environments receive the host-mirrored torch build
+    # (cuvis-ai-core >= 0.12.1).
     "torch>=2.5.1",
     "torchvision>=0.20.1",
     "numpy>=1.24.4",
@@ -118,6 +121,10 @@ include = ["sam2*", "efficient_track_anything*", "cuvis_ai_rtsam2*"]
 sam2 = ["configs/**/*.yaml"]
 efficient_track_anything = ["configs/**/*.yaml"]
 
+# Local development only: pins this repo's own venv (where this pyproject is the
+# resolution root) to CUDA torch. Installs of this package as a git or registry
+# dependency never read these tables; the orchestrator (cuvis-ai-core >= 0.12.1)
+# mirrors the host's installed torch build into each composed child env instead.
 [tool.uv.sources]
 torch = { index = "pytorch-cu128" }
 torchvision = { index = "pytorch-cu128" }
