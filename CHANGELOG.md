@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.0 - 2026-08-21
+
+- Added the `RTSAM2PointExpansion` node: interactive positive/negative click points expanded into one object mask on a single frame, port-compatible with the sam3 plugin's `SAM3PointExpansion` (`points` dicts with `element_id`/`x`/`y`/`type`; `frame_id` accepted for contract parity, unused). It reuses the vendored camera predictors' point API in a per-click lifecycle (`load_first_frame` + decoder-only prompt, never `finalize_new_input`/`track`), so clicks are deterministic and `reset()` keeps the loaded predictor. Out-of-bounds coordinates clamp into the frame with one warning per node instance; malformed or non-finite points raise.
+- Patched the vendored camera predictors to derive the inference-state device from the model weights instead of probing CUDA/MPS and raising: the point-expansion node now runs on CPU-only machines (force with `CUDA_VISIBLE_DEVICES=-1`) and follows `.to()` moves. The three `.cuda(non_blocking=True)` calls on `prev_sam_mask_logits` were retargeted to that device, and EfficientTAM's stray `print("frame 0")` in `load_first_frame` was removed. Side effect: the streaming tracker nodes on a CPU-only machine now run slowly instead of raising at state init; tracker CPU support remains out of scope. The full local-patch list lives in `.upstream-sync.yml` and must be re-applied after every upstream sync.
+- Extracted the shared camera-predictor fake into `tests/cuvis_ai_rtsam2/_mock_predictors.py`, with point-prompt support and EfficientTAM's dummy-object fidelity (`load_first_frame` registers object 0; its channel returns at `NO_OBJ_SCORE`).
 ## 0.2.1 - 2026-08-20
 
 - Documented the torch cu128 index tables as local-development-only: installs of this package as a git or registry dependency never read them, and composed child environments mirror the host's torch build (cuvis-ai-core >= 0.12.1).
@@ -11,8 +16,6 @@ All notable changes to this project will be documented in this file.
 - The EfficientTAM checkpoint now resolves from the shared HuggingFace cache when it is absent from the checkout, so the sandboxed runtime loads a weight provisioned out of band (`download-model efficienttam_s`) offline instead of failing. It is a pure cache lookup (never a download); an explicit `model_dir` still takes precedence as a deterministic override, and families with no single canonical HF repo (SAM2.1) are unaffected. The missing-asset guidance now points at the shared-cache provisioning path too.
 - Require `cuvis-ai-schemas>=0.8.0` and `cuvis-ai-core>=0.11.2`, adopting the released framework versions. Core 0.11.2's floors transitively pull the security-fixed `click` 8.4.2 (PYSEC-2026-2132) and `pillow` 12.3.0 (PYSEC-2026-2253/2254/2255/2256/2257/3451/3452/3453) into the lock.
 - Ignored PYSEC-2026-3447 (setuptools, fixed only in 83.0.0) in the pip-audit step: torch 2.11 (cu128) caps setuptools below the fix, so it needs a torch upgrade.
-
-## 0.1.0 - 2026-07-07
 
 ## 0.1.0 - 2026-07-07
 

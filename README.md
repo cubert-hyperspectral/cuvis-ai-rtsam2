@@ -24,11 +24,21 @@ cuvis.ai is split across multiple repositories:
 |---|---|
 | `RTSAM2BboxPropagation` | Bounding-box prompt seeding, then per-frame streaming tracking |
 | `RTSAM2MaskPropagation` | Label-map (mask) prompt seeding, then per-frame streaming tracking |
+| `RTSAM2PointExpansion` | Interactive positive/negative click points to one object mask on a single frame |
 
-Both nodes seed once per stream: prompts are applied on the first prompt frame, subsequent
+The propagation nodes seed once per stream: prompts are applied on the first prompt frame, subsequent
 frames are tracked. `reset()` (driven automatically by `Predictor` between runs) starts a
 fresh stream; it also releases the loaded predictor, which is rebuilt on the next prompt
 frame. Mid-stream re-prompting raises.
+
+`RTSAM2PointExpansion` is single-frame and re-promptable instead: every clicked frame
+re-seeds the predictor (one encoder pass per click, ~64 ms on GPU / ~0.5 s on CPU with
+EfficientTAM-S), so the same point set always yields the same mask, and `reset()` keeps
+the loaded model. It is port-compatible with the sam3 plugin's `SAM3PointExpansion`;
+note the `detection_scores` scales differ between the backends (RTSAM2 emits the mean
+sigmoid of the positive logits, SAM3 an IoU prediction), so scores are not comparable
+across them. Unlike the streaming trackers, this node also runs on CPU-only machines
+(force with `CUDA_VISIBLE_DEVICES=-1`; an empty string is not a valid override).
 
 Supported `model_type` values: `efficienttam` (alias for `efficienttam_s`),
 `efficienttam_s`, `efficienttam_s_512x512`, `efficienttam_ti`, `efficienttam_ti_512x512`,
@@ -68,6 +78,7 @@ path: "../cuvis-ai-rtsam2"
 capabilities:
   - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2BboxPropagation
   - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2MaskPropagation
+  - class_name: cuvis_ai_rtsam2.node.rtsam2_point_expansion.RTSAM2PointExpansion
 ```
 
 Git-tag manifest (frozen, reproducible installs — available once the first release tag exists):
@@ -75,11 +86,12 @@ Git-tag manifest (frozen, reproducible installs — available once the first rel
 ```yaml
 name: rtsam2
 repo: "https://github.com/cubert-hyperspectral/cuvis-ai-rtsam2.git"
-tag: "v0.1.0"
+tag: "v0.3.0"
 package_name: "cuvis-ai-rtsam2"
 capabilities:
   - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2BboxPropagation
   - class_name: cuvis_ai_rtsam2.node.rtsam2_streaming_propagation.RTSAM2MaskPropagation
+  - class_name: cuvis_ai_rtsam2.node.rtsam2_point_expansion.RTSAM2PointExpansion
 ```
 
 Verify a manifest resolves:

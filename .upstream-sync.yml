@@ -1,16 +1,39 @@
 # Upstream fork tracking for cuvis-ai-rtsam2.
 # The sam2/ and efficient_track_anything/ trees are vendored from the upstream
 # fork below (which itself vendors Meta's SAM2 and EfficientTAM). They are
-# read-only from this fork's perspective: the only local edit is the isolated
-# packaging change in setup.py/pyproject.toml.
+# read-only from this fork's perspective except for the local patches listed
+# under notes:, which MUST be re-applied after every upstream sync.
 upstream:
   remote: https://github.com/robrosinc/REALTIME_SAM2
   branch: main
 last_synced:
   ref: f50edf7
   date: "2026-04-10"
-cuvis_ai_plugin_version: "unreleased"
+cuvis_ai_plugin_version: "0.3.0"
 notes: |
+  - LOCAL PATCHES TO THE VENDORED PREDICTORS -- re-apply after EVERY upstream
+    sync; there is no CI guard, this list is the only protection against
+    silent reversion. Losing them breaks RTSAM2PointExpansion on CPU-only
+    machines (and on nodes moved via .to("cpu")):
+      1. sam2/sam2_camera_predictor.py _init_state: the CUDA/MPS availability
+         probe + RuntimeError is replaced by deriving the device from the
+         model weights (condition_state["device"] = next(self.parameters()).device).
+      2. efficient_track_anything/efficienttam_camera_predictor.py _init_state:
+         same derived-device replacement.
+      3. sam2_camera_predictor.py (two sites, _add_new_points_or_box paths):
+         prev_out["pred_masks"].cuda(non_blocking=True) is replaced by
+         .to(condition_state["device"], non_blocking=True).
+      4. efficienttam_camera_predictor.py (one site, add_new_prompts path):
+         same .cuda -> .to(condition_state["device"]) replacement.
+      5. efficienttam_camera_predictor.py load_first_frame: the bare
+         print("frame 0") is removed (it would spam every per-click re-seed
+         from RTSAM2PointExpansion; process-global stdout redirection is not
+         an option in the threaded gRPC server).
+  - Benign upstream quirk (do NOT "fix"): efficienttam add_new_prompts always
+    consolidates with new_input=True, so with the default object_of_interest=-1
+    a caller using new_input=False semantics still gets an empty junk entry
+    written to output_dict_per_obj[-1]. Harmless on the point-expansion
+    re-seed path (state is rebuilt every click) and on the tracker path.
   - setup.py: the version= kwarg is commented out so setuptools-scm owns the
     package version; re-apply after any upstream setup.py rewrite.
   - The RTSAM2 mask-prompt path writes into the camera predictors' private
