@@ -16,6 +16,14 @@ Stream lifecycle (one ``forward`` call per frame)::
               predictors leak model state across load_first_frame, so a fresh
               stream needs a fresh build; the next prompt reloads the model)
     cleanup() same as reset(); kept as the explicit teardown hook
+
+Single-frame lifecycle (``RTSAM2PointExpansion``)::
+
+    forward(rgb_image, points) -> load_first_frame -> point prompt -> mask
+
+    Re-seeds the predictor on every clicked frame and never calls
+    finalize_new_input()/track(), so the frame-index leak above does not
+    apply and its reset() keeps the loaded predictor.
 """
 
 from __future__ import annotations
@@ -193,6 +201,10 @@ class RTSAM2TrackerInference(Node):
         predictor returns empty masks on real weights), so a fresh stream
         needs a fresh predictor build. The next prompt frame triggers the
         rebuild via ``_ensure_model``.
+
+        The leak is specific to the ``finalize_new_input``/``track`` frame
+        index: subclasses that never call those (``RTSAM2PointExpansion``)
+        may keep the predictor across resets and re-seed it instead.
         """
         self._stream_frame_idx = 0
         self._tracking_started = False
