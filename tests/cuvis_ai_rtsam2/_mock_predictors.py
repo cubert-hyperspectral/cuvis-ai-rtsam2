@@ -135,7 +135,15 @@ class _MockCameraPredictor:
 
     def _prompt_return(self, frame_idx: int) -> tuple[int, list[int], torch.Tensor]:
         obj_ids = list(self.condition_state["obj_ids"])
-        return int(frame_idx), obj_ids, self._logits_for(obj_ids, frame_idx=int(frame_idx))
+        # Accumulated point prompts shift the returned geometry (load_first_frame
+        # resets the record), so a caller that skips the per-click re-seed gets
+        # different logits for the same click and equality tests catch it.
+        shift = max(0, len(self.condition_state.get("prompt_points", ())) - 1)
+        return (
+            int(frame_idx),
+            obj_ids,
+            self._logits_for(obj_ids, frame_idx=int(frame_idx) + shift),
+        )
 
     def _record_prompt(
         self,

@@ -105,8 +105,9 @@ class SAM2CameraPredictor(SAM2Base):
         # the original video height and width, used for resizing final output scores
 
         # Local patch (.upstream-sync.yml): derive the state device from the model
-        # weights instead of probing CUDA/MPS availability, so CPU-only machines and
-        # predictors moved via .to() work; upstream raises here without CUDA/MPS.
+        # weights instead of probing CUDA/MPS availability, so CPU-only machines work
+        # and the state follows the weights' device; upstream raises here without
+        # CUDA/MPS.
         self.condition_state["device"] = next(self.parameters()).device
 
         if offload_state_to_cpu:

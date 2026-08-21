@@ -20,7 +20,8 @@ notes: |
          model weights (condition_state["device"] = next(self.parameters()).device).
       2. efficient_track_anything/efficienttam_camera_predictor.py _init_state:
          same derived-device replacement.
-      3. sam2_camera_predictor.py (two sites, _add_new_points_or_box paths):
+      3. sam2_camera_predictor.py (two sites: one in add_new_points, one in
+         add_new_points_or_box):
          prev_out["pred_masks"].cuda(non_blocking=True) is replaced by
          .to(condition_state["device"], non_blocking=True).
       4. efficienttam_camera_predictor.py (one site, add_new_prompts path):

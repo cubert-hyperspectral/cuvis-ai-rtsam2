@@ -1,7 +1,7 @@
 # Local-path manifest for the rtsam2 plugin (one yaml file = one plugin).
 # `path` resolves relative to this file's directory: ".." is the repo root
 # containing pyproject.toml. For a frozen install use the git-tag form
-# documented in the README once a release tag exists.
+# documented in the README.
 name: rtsam2
 path: ".."
 package_name: "cuvis-ai-rtsam2"

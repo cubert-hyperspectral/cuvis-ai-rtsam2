@@ -37,7 +37,7 @@ EfficientTAM-S), so the same point set always yields the same mask, and `reset()
 the loaded model. It is port-compatible with the sam3 plugin's `SAM3PointExpansion`;
 note the `detection_scores` scales differ between the backends (RTSAM2 emits the mean
 sigmoid of the positive logits, SAM3 an IoU prediction), so scores are not comparable
-across them. Unlike the streaming trackers, this node also runs on CPU-only machines
+across them. It is also the only node validated on CPU-only machines
 (force with `CUDA_VISIBLE_DEVICES=-1`; an empty string is not a valid override).
 
 Supported `model_type` values: `efficienttam` (alias for `efficienttam_s`),
@@ -81,7 +81,7 @@ capabilities:
   - class_name: cuvis_ai_rtsam2.node.rtsam2_point_expansion.RTSAM2PointExpansion
 ```
 
-Git-tag manifest (frozen, reproducible installs — available once the first release tag exists):
+Git-tag manifest (frozen, reproducible installs):
 
 ```yaml
 name: rtsam2
