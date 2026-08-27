@@ -47,10 +47,10 @@ dependencies = [
     "cuvis-ai-schemas>=0.8.0",
     # Upstream SAM2 / EfficientTAM runtime dependencies. torch/torchvision are
     # imported directly by the vendored trees, so keep explicit floors here and
-    # keep the two ABI-matched (same-build) with each other. The cu128 index
-    # ([tool.uv.sources]) applies only to local development of this repo;
-    # composed child environments receive the host-mirrored torch build
-    # (cuvis-ai-core >= 0.12.1).
+    # keep the two ABI-matched (same-build) with each other. The cu128 index pin
+    # lives in the `cuda` dependency group ([tool.uv.sources] below), which only
+    # this repo's own venv installs; composed child environments receive the
+    # host-mirrored torch build (cuvis-ai-core >= 0.12.1).
     "torch>=2.5.1",
     "torchvision>=0.20.1",
     "numpy>=1.24.4",
@@ -121,13 +121,19 @@ include = ["sam2*", "efficient_track_anything*", "cuvis_ai_rtsam2*"]
 sam2 = ["configs/**/*.yaml"]
 efficient_track_anything = ["configs/**/*.yaml"]
 
-# Local development only: pins this repo's own venv (where this pyproject is the
-# resolution root) to CUDA torch. Installs of this package as a git or registry
-# dependency never read these tables; the orchestrator (cuvis-ai-core >= 0.12.1)
-# mirrors the host's installed torch build into each composed child env instead.
+# Local development only: pins this repo's own venv to CUDA torch. The pin is scoped to
+# the `cuda` dependency group (installed by default here) because uv also reads a git or
+# path dependency's `[tool.uv.sources]`: an unscoped `torch = { index = ... }` would reach
+# every composed child environment and collide with the host-mirrored torch index there
+# (cu130 on a Jetson Thor host, cpu on a CPU-only host). Consumers never install a
+# dependency's groups, so the scoped pin binds nothing outside this checkout; the
+# orchestrator (cuvis-ai-core >= 0.12.1) mirrors the host's torch build into each child.
+[tool.uv]
+default-groups = ["dev", "cuda"]
+
 [tool.uv.sources]
-torch = { index = "pytorch-cu128" }
-torchvision = { index = "pytorch-cu128" }
+torch = { index = "pytorch-cu128", group = "cuda" }
+torchvision = { index = "pytorch-cu128", group = "cuda" }
 # Local development alternative (uncomment to use local path instead)
 # cuvis-ai-core = { path = "../cuvis-ai-core/cuvis-ai-core", editable = true }
 
@@ -144,6 +150,11 @@ fallback_version = "0.1.0"
 [dependency-groups]
 dev = [
     "setuptools-scm>=8",
+]
+# Floors live in [project].dependencies; this group only carries the cu128 index pin.
+cuda = [
+    "torch",
+    "torchvision",
 ]
 
 [tool.ruff]

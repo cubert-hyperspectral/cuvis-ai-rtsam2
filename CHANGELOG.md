@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.1 - 2026-08-27
+
+- Scoped the torch / torchvision cu128 index pin to a `cuda` dependency group (installed by default in this checkout). uv reads a git dependency's `[tool.uv.sources]`, so the previous unscoped pin reached every composed child environment and made `uv lock` fail with conflicting torch indexes on any host whose torch is not cu128 (Jetson Thor, cu130). The 0.2.1 note claiming git installs never read these tables was wrong.
+- Security: bumped the `hydra-core` lock 1.3.2 -> 1.3.5 (CVE-2026-68508, fixed from 1.3.4, `hydra.utils.instantiate` target blacklist), clearing the advisory that failed the CI security scan.
+
 ## 0.3.0 - 2026-08-21
 
 - Added the `RTSAM2PointExpansion` node: interactive positive/negative click points expanded into one object mask on a single frame, port-compatible with the sam3 plugin's `SAM3PointExpansion` (`points` dicts with `element_id`/`x`/`y`/`type`; `frame_id` accepted for contract parity, unused). It reuses the vendored camera predictors' point API in a per-click lifecycle (`load_first_frame` + decoder-only prompt, never `finalize_new_input`/`track`), so clicks are deterministic and `reset()` keeps the loaded predictor. Out-of-bounds coordinates clamp into the frame with one warning per node instance; malformed or non-finite points raise.
