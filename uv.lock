@@ -631,6 +631,10 @@ notebooks = [
 ]
 
 [package.dev-dependencies]
+cuda = [
+    { name = "torch" },
+    { name = "torchvision" },
+]
 dev = [
     { name = "setuptools-scm" },
 ]
@@ -666,8 +670,8 @@ requires-dist = [
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.10" },
     { name = "ruff", marker = "extra == 'dev'" },
     { name = "strawberry-graphql", marker = "extra == 'interactive-demo'", specifier = ">=0.243.0" },
-    { name = "torch", specifier = ">=2.5.1", index = "https://download.pytorch.org/whl/cu128" },
-    { name = "torchvision", specifier = ">=0.20.1", index = "https://download.pytorch.org/whl/cu128" },
+    { name = "torch", specifier = ">=2.5.1" },
+    { name = "torchvision", specifier = ">=0.20.1" },
     { name = "tqdm", specifier = ">=4.66.1" },
     { name = "triton", marker = "sys_platform != 'win32'" },
     { name = "triton-windows", marker = "sys_platform == 'win32'" },
@@ -676,6 +680,10 @@ requires-dist = [
 provides-extras = ["notebooks", "interactive-demo", "dev"]
 
 [package.metadata.requires-dev]
+cuda = [
+    { name = "torch", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "cuvis-ai-rtsam2", group = "cuda" } },
+    { name = "torchvision", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "cuvis-ai-rtsam2", group = "cuda" } },
+]
 dev = [{ name = "setuptools-scm", specifier = ">=8" }]
 
 [[package]]
