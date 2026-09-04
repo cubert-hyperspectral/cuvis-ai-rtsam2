@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.0 - 2026-09-04
+
+- **EfficientTAM weights come from the `cubert-gmbh/efficient-track-anything` Hugging Face mirror through cuvis-ai-core's weight registry.** The cache lookup goes through `ModelWeights.resolve(<variant>, download=False)` (registry names `efficienttam_s`, `efficienttam_ti`, `efficienttam_s_512x512`, `efficienttam_ti_512x512`) instead of a `try_to_load_from_cache` call against `yunyangx/efficient-track-anything`, so the offline child finds the weights `download-model download <variant>` provisioned under `models--cubert-gmbh--efficient-track-anything`; the missing-assets error now carries core's own provisioning sentence. `_ModelSpec.hf_repo_id` is `weights_name`; the unreachable `build_efficienttam_hf` Hub builder is gone from the vendored package. Requires cuvis-ai-core 0.16.0. A cache under the old `models--yunyangx--efficient-track-anything` folder is not reused; the weights download once more.
+
 ## 0.3.1 - 2026-08-27
 
 - Scoped the torch / torchvision cu128 index pin to a `cuda` dependency group (installed by default in this checkout). uv reads a git dependency's `[tool.uv.sources]`, so the previous unscoped pin reached every composed child environment and made `uv lock` fail with conflicting torch indexes on any host whose torch is not cu128 (Jetson Thor, cu130). The 0.2.1 note claiming git installs never read these tables was wrong.

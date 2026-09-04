@@ -14,6 +14,7 @@ from _mock_predictors import (
     _patch_model_package_root,
     _random_rgb,
 )
+from cuvis_ai_core.data.model_weights import ModelWeights, ModelWeightsMissingError
 from cuvis_ai_core.utils.node_registry import NodeRegistry
 from cuvis_ai_schemas.enums import NodeCategory, NodeTag
 
@@ -399,33 +400,24 @@ def test_checkpoint_resolves_from_hf_cache_when_local_absent(
     )
     _patch_model_package_root(monkeypatch, repo_root)
 
-    cached_file = (
-        tmp_path
-        / "hfcache"
-        / "models--yunyangx--efficient-track-anything"
-        / "snapshots"
-        / ("a" * 40)
-        / "efficienttam_s.pt"
-    )
+    cached_file = tmp_path / "hfcache" / "efficienttam_s.pt"
     cached_file.parent.mkdir(parents=True, exist_ok=True)
     cached_file.write_text("weights\n", encoding="utf-8")
 
-    calls: dict[str, str] = {}
+    calls: dict[str, object] = {}
 
-    def _fake_try_cache(repo_id, filename, **_kwargs):
-        calls["repo_id"] = repo_id
-        calls["filename"] = filename
-        return str(cached_file)
+    def _fake_resolve(cls, name, **kwargs):
+        calls["name"] = name
+        calls.update(kwargs)
+        return cached_file
 
-    monkeypatch.setattr("huggingface_hub.try_to_load_from_cache", _fake_try_cache)
+    monkeypatch.setattr(ModelWeights, "resolve", classmethod(_fake_resolve))
 
     node = RTSAM2BboxPropagation(model_type="efficienttam", name="test_hf_cache_resolves")
 
     assert node._resolve_checkpoint_path() == Path(str(cached_file))
-    assert calls == {
-        "repo_id": "yunyangx/efficient-track-anything",
-        "filename": "efficienttam_s.pt",
-    }
+    # A pure lookup through core: never a download from the sandboxed runtime.
+    assert calls == {"name": "efficienttam_s", "download": False}
     # End-to-end asset resolution uses the cached checkpoint (config ships in-package).
     _config_name, resolved = node._resolve_model_assets()
     assert Path(resolved) == Path(str(cached_file))
@@ -444,7 +436,7 @@ def test_local_checkpoint_preferred_over_hf_cache(
     def _boom(*_a, **_k):
         raise AssertionError("HF cache must not be consulted when a local checkpoint exists")
 
-    monkeypatch.setattr("huggingface_hub.try_to_load_from_cache", _boom)
+    monkeypatch.setattr(ModelWeights, "resolve", classmethod(_boom))
 
     node = RTSAM2BboxPropagation(model_type="efficienttam", name="test_local_preferred")
     assert node._resolve_checkpoint_path() == checkpoint_path
@@ -467,7 +459,7 @@ def test_explicit_model_dir_does_not_consult_hf_cache(
     def _boom(*_a, **_k):
         raise AssertionError("HF cache must not be consulted when model_dir is set")
 
-    monkeypatch.setattr("huggingface_hub.try_to_load_from_cache", _boom)
+    monkeypatch.setattr(ModelWeights, "resolve", classmethod(_boom))
 
     node = RTSAM2BboxPropagation(
         model_type="efficienttam",
@@ -481,8 +473,8 @@ def test_sam2_family_never_consults_hf_cache(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    # sam2.1 has no single canonical HF repo, so its spec carries no hf_repo_id
-    # and the cache lookup is skipped entirely.
+    # sam2.1 has no registry entry, so its spec carries no weights_name and the
+    # core lookup is skipped entirely.
     repo_root, _, checkpoint_path = _materialize_variant_layout(
         tmp_path,
         variant="sam2.1_hiera_t",
@@ -491,9 +483,9 @@ def test_sam2_family_never_consults_hf_cache(
     _patch_model_package_root(monkeypatch, repo_root)
 
     def _boom(*_a, **_k):
-        raise AssertionError("sam2 has no hf_repo_id; the HF cache must not be consulted")
+        raise AssertionError("sam2 has no weights_name; core must not be consulted")
 
-    monkeypatch.setattr("huggingface_hub.try_to_load_from_cache", _boom)
+    monkeypatch.setattr(ModelWeights, "resolve", classmethod(_boom))
 
     node = RTSAM2MaskPropagation(model_type="sam2", name="test_sam2_no_hf_cache")
     assert node._resolve_checkpoint_path() == checkpoint_path
@@ -527,6 +519,18 @@ def test_missing_config_error_includes_resolved_paths(
     assert "RTSAM2 checkout" in message
 
 
+def _stub_missing_weights(monkeypatch) -> None:
+    """Core reports no provisioned weight in the shared cache."""
+
+    def _missing(cls, name, **kwargs):
+        raise ModelWeightsMissingError(
+            f"'{name}' is not in the model cache. Provision it with: "
+            f"uv run download-model download {name}"
+        )
+
+    monkeypatch.setattr(ModelWeights, "resolve", classmethod(_missing))
+
+
 def test_missing_efficienttam_checkpoint_error_includes_download_guidance(
     monkeypatch,
     tmp_path: Path,
@@ -538,7 +542,7 @@ def test_missing_efficienttam_checkpoint_error_includes_download_guidance(
     )
     _patch_model_package_root(monkeypatch, repo_root)
     # No weight provisioned in the shared cache either -> the guidance must fire.
-    monkeypatch.setattr("huggingface_hub.try_to_load_from_cache", lambda *a, **k: None)
+    _stub_missing_weights(monkeypatch)
 
     node = RTSAM2BboxPropagation(
         model_type="efficienttam_s_512x512",
