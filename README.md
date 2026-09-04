@@ -47,11 +47,21 @@ Supported `model_type` values: `efficienttam` (alias for `efficienttam_s`),
 
 ## Checkpoints
 
-Model weights are not downloaded at runtime. Place them under `checkpoints/` (or pass an
-absolute `model_dir` hparam — recommended for installed, non-editable deployments):
+EfficientTAM weights are resolved through cuvis-ai-core's weight registry from the
+[`cubert-gmbh/efficient-track-anything`](https://huggingface.co/cubert-gmbh/efficient-track-anything)
+mirror (public, commit-pinned, sha256-verified). The nodes never download at runtime: provision
+the variant you use once into the shared model cache, and the sandboxed runtime resolves it
+offline:
 
-- EfficientTAM: `checkpoints/download_checkpoints.sh` (Hugging Face)
-- SAM2.1: <https://github.com/facebookresearch/sam2#download-checkpoints>
+```bash
+uv run download-model download efficienttam_s
+# also: efficienttam_ti, efficienttam_s_512x512, efficienttam_ti_512x512
+```
+
+A checkpoint placed under `checkpoints/` (or an absolute `model_dir` hparam, recommended for
+installed, non-editable deployments) takes precedence over the cache. SAM2.1 weights are not
+mirrored: download them from <https://github.com/facebookresearch/sam2#download-checkpoints>
+into `checkpoints/`.
 
 ## Quick Start
 

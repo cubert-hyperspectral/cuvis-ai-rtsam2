@@ -13,6 +13,7 @@ from _mock_predictors import (
     _patch_model_package_root,
     _random_rgb,
 )
+from cuvis_ai_core.data.model_weights import ModelWeights, ModelWeightsMissingError
 from cuvis_ai_schemas.enums import NodeCategory, NodeTag
 from loguru import logger
 
@@ -345,6 +346,18 @@ def test_to_moves_node_and_keeps_predictor() -> None:
 # --- asset resolution ----------------------------------------------------
 
 
+def _stub_missing_weights(monkeypatch) -> None:
+    """Core reports no provisioned weight in the shared cache."""
+
+    def _missing(cls, name, **kwargs):
+        raise ModelWeightsMissingError(
+            f"'{name}' is not in the model cache. Provision it with: "
+            f"uv run download-model download {name}"
+        )
+
+    monkeypatch.setattr(ModelWeights, "resolve", classmethod(_missing))
+
+
 def test_missing_checkpoint_error_includes_download_guidance(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
@@ -356,14 +369,14 @@ def test_missing_checkpoint_error_includes_download_guidance(
     )
     _patch_model_package_root(monkeypatch, repo_root)
     # No weight provisioned in the shared cache either -> the guidance must fire.
-    monkeypatch.setattr("huggingface_hub.try_to_load_from_cache", lambda *a, **k: None)
+    _stub_missing_weights(monkeypatch)
 
     node = RTSAM2PointExpansion(name="test_missing_ckpt")
     with pytest.raises(FileNotFoundError) as exc_info:
         node.forward(_random_rgb(), points=[_positive_point()])
 
     message = str(exc_info.value)
-    assert "download-model efficienttam_s" in message
+    assert "download-model download efficienttam_s" in message
     assert str(checkpoint_path) in message
 
 
@@ -411,7 +424,7 @@ def _mask_iou(mask: np.ndarray, reference: np.ndarray) -> float:
 @pytest.mark.slow
 @pytest.mark.skipif(
     not _efficienttam_s_resolvable(),
-    reason="efficienttam_s checkpoint not resolvable (run 'download-model efficienttam_s')",
+    reason="efficienttam_s checkpoint not resolvable (run 'download-model download efficienttam_s')",
 )
 class TestRealWeightsSmoke:
     """End-to-end clicks on real EfficientTAM-S weights.

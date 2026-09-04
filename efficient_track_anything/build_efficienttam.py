@@ -14,9 +14,7 @@ from hydra import compose
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 
-if os.path.isdir(
-    os.path.join(efficient_track_anything.__path__[0], "efficient_track_anything")
-):
+if os.path.isdir(os.path.join(efficient_track_anything.__path__[0], "efficient_track_anything")):
     raise RuntimeError(
         "You're likely running Python from the parent directory of the EfficientTAM repository "
     )
@@ -25,40 +23,6 @@ if os.path.isdir(
 # This is just for demonstration.
 # Please download efficient track anything models from https://huggingface.co/yunyangx/efficient-track-anything.
 # and use build_efficienttam/build_efficienttam_video_predictor for loading them.
-HF_MODEL_ID_TO_FILENAMES = {
-    "facebook/efficienttam_s": (
-        "configs/efficienttam/efficienttam_s.yaml",
-        "efficienttam_s.pt",
-    ),
-    "facebook/efficienttam_s_512x512": (
-        "configs/efficienttam/efficienttam_s_512x512.yaml",
-        "efficienttam_s_512x512.pt",
-    ),
-    "facebook/efficienttam_s_1": (
-        "configs/efficienttam/efficienttam_s_1.yaml",
-        "efficienttam_s_1.pt",
-    ),
-    "facebook/efficienttam_s_2": (
-        "configs/efficienttam/efficienttam_s_2.yaml",
-        "efficienttam_s_2.pt",
-    ),
-    "facebook/efficienttam_ti": (
-        "configs/efficienttam/efficienttam_ti.yaml",
-        "efficienttam_ti.pt",
-    ),
-    "facebook/efficienttam_ti_512x512": (
-        "configs/efficienttam/efficienttam_ti_512x512.yaml",
-        "efficienttam_ti_512x512.pt",
-    ),
-    "facebook/efficienttam_ti_1": (
-        "configs/efficienttam/efficienttam_ti_1.yaml",
-        "efficienttam_ti_1.pt",
-    ),
-    "facebook/efficienttam_ti_2": (
-        "configs/efficienttam/efficienttam_ti_2.yaml",
-        "efficienttam_ti_2.pt",
-    ),
-}
 
 
 def build_efficienttam(
@@ -88,6 +52,7 @@ def build_efficienttam(
     if mode == "eval":
         model.eval()
     return model
+
 
 def build_efficienttam_camera_predictor(
     config_file,
@@ -137,18 +102,6 @@ def build_efficienttam_camera_predictor(
     if mode == "eval":
         model.eval()
     return model
-
-def _hf_download(model_id):
-    from huggingface_hub import hf_hub_download
-
-    config_name, checkpoint_name = HF_MODEL_ID_TO_FILENAMES[model_id]
-    ckpt_path = hf_hub_download(repo_id=model_id, filename=checkpoint_name)
-    return config_name, ckpt_path
-
-
-def build_efficienttam_hf(model_id, **kwargs):
-    config_name, ckpt_path = _hf_download(model_id)
-    return build_efficienttam(config_file=config_name, ckpt_path=ckpt_path, **kwargs)
 
 
 def _load_checkpoint(model, ckpt_path):

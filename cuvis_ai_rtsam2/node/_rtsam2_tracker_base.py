@@ -45,14 +45,10 @@ class _ModelSpec:
     family: str
     config_name: str
     checkpoint_name: str
-    # Public HuggingFace repo the checkpoint can be provisioned from / resolved in
-    # the shared cache. None for families with no single canonical HF repo (sam2.1
-    # ships one repo per size), which keep the local-checkout resolution only.
-    hf_repo_id: str | None = None
-
-
-# All EfficientTAM checkpoints live in one public repo (Apache-2.0).
-_EFFICIENTTAM_HF_REPO = "yunyangx/efficient-track-anything"
+    # cuvis-ai-core weight-registry name the checkpoint is provisioned under and
+    # resolved from in the shared cache (the cubert-gmbh mirror). None for families
+    # without a registry entry (sam2.1), which keep the local-checkout resolution only.
+    weights_name: str | None = None
 
 
 _MODEL_VARIANT_REGISTRY: dict[str, _ModelSpec] = {
@@ -60,25 +56,25 @@ _MODEL_VARIANT_REGISTRY: dict[str, _ModelSpec] = {
         family="efficienttam",
         config_name="configs/efficienttam/efficienttam_s.yaml",
         checkpoint_name="efficienttam_s.pt",
-        hf_repo_id=_EFFICIENTTAM_HF_REPO,
+        weights_name="efficienttam_s",
     ),
     "efficienttam_s_512x512": _ModelSpec(
         family="efficienttam",
         config_name="configs/efficienttam/efficienttam_s_512x512.yaml",
         checkpoint_name="efficienttam_s_512x512.pt",
-        hf_repo_id=_EFFICIENTTAM_HF_REPO,
+        weights_name="efficienttam_s_512x512",
     ),
     "efficienttam_ti": _ModelSpec(
         family="efficienttam",
         config_name="configs/efficienttam/efficienttam_ti.yaml",
         checkpoint_name="efficienttam_ti.pt",
-        hf_repo_id=_EFFICIENTTAM_HF_REPO,
+        weights_name="efficienttam_ti",
     ),
     "efficienttam_ti_512x512": _ModelSpec(
         family="efficienttam",
         config_name="configs/efficienttam/efficienttam_ti_512x512.yaml",
         checkpoint_name="efficienttam_ti_512x512.pt",
-        hf_repo_id=_EFFICIENTTAM_HF_REPO,
+        weights_name="efficienttam_ti_512x512",
     ),
     "sam2.1_hiera_t": _ModelSpec(
         family="sam2",
@@ -297,10 +293,10 @@ class RTSAM2TrackerInference(Node):
             return (model_dir / self._model_spec.checkpoint_name).resolve(strict=False)
 
         # Default: prefer a checkpoint bundled in the checkout's checkpoints/ dir,
-        # else fall back to the shared HuggingFace cache. In the sandboxed runtime
-        # the package lives in an ephemeral site-packages with no checkpoints/ dir,
-        # so the weight is provisioned out of band (`download-model efficienttam_s`)
-        # into the HF cache and resolved here offline.
+        # else the shared model cache through cuvis-ai-core's weight registry. In the
+        # sandboxed runtime the package lives in an ephemeral site-packages with no
+        # checkpoints/ dir, so the weight is provisioned out of band
+        # (`download-model download efficienttam_s`) and resolved here offline.
         local_path = (repo_root / "checkpoints" / self._model_spec.checkpoint_name).resolve(
             strict=False
         )
@@ -310,24 +306,25 @@ class RTSAM2TrackerInference(Node):
         return cached if cached is not None else local_path
 
     def _checkpoint_from_hf_cache(self) -> Path | None:
-        """Resolve the checkpoint from the shared HuggingFace cache, or None.
+        """Resolve the checkpoint from the shared model cache through core, or None.
 
         A pure cache lookup (never a download): provisioning is out of band via
         ``download-model``, and the sandboxed runtime is offline, so this only
-        reports a weight already present in the cache the operator points
-        ``HF_HUB_CACHE`` / ``HF_HOME`` at. Returns None when the family has no
-        canonical HF repo or the weight is not cached, so the caller falls back to
-        the local path and raises the actionable guidance.
+        reports a weight cuvis-ai-core already finds in the cache it fills (the
+        ``cubert-gmbh/efficient-track-anything`` mirror). Returns None when the
+        family has no registry entry or the weight is not cached; core's own
+        message is kept for the guidance the caller raises.
         """
-        repo_id = self._model_spec.hf_repo_id
-        if repo_id is None:
+        weights_name = self._model_spec.weights_name
+        if weights_name is None:
             return None
+        from cuvis_ai_core.data.model_weights import ModelWeights, ModelWeightsMissingError
+
         try:
-            from huggingface_hub import try_to_load_from_cache
-        except ImportError:
+            return ModelWeights.resolve(weights_name, download=False)
+        except ModelWeightsMissingError as exc:
+            self._missing_weights_hint = str(exc)
             return None
-        cached = try_to_load_from_cache(repo_id=repo_id, filename=self._model_spec.checkpoint_name)
-        return Path(cached) if isinstance(cached, str) else None
 
     def _missing_asset_guidance(
         self,
@@ -348,12 +345,16 @@ class RTSAM2TrackerInference(Node):
             "If it is missing, restore or reinstall the RTSAM2 repository contents.",
         ]
         if self._model_type == "efficienttam":
+            hint = getattr(self, "_missing_weights_hint", None) or (
+                "Provision the checkpoint into the shared model cache with "
+                f"'download-model download {self._model_spec.weights_name}'."
+            )
+            guidance.append(hint)
             guidance.append(
-                "Provision the checkpoint into the shared model cache so the sandboxed "
-                "runtime resolves it offline (e.g. 'download-model efficienttam_s'), or "
-                "download the EfficientTAM checkpoints into "
-                f"'{(repo_root / 'checkpoints').resolve(strict=False)}', for example via "
-                f"'{(repo_root / 'checkpoints' / 'download_checkpoints.sh').resolve(strict=False)}'."
+                "Alternatively place the EfficientTAM checkpoint in "
+                f"'{(repo_root / 'checkpoints').resolve(strict=False)}' (for example via "
+                f"'{(repo_root / 'checkpoints' / 'download_checkpoints.sh').resolve(strict=False)}') "
+                "or pass an absolute model_dir."
             )
         else:
             guidance.append(
