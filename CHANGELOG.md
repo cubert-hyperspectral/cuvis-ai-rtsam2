@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.0 - 2026-09-07
+
+- `cuvis_ai_rtsam2/weights.py` declares the four EfficientTAM rows (`efficienttam_s` as the default with the `efficienttam` alias, `efficienttam_ti`, `efficienttam_s_512x512`, `efficienttam_ti_512x512`; picked by `model_type`, bypassed by `model_dir`; `cubert-gmbh/efficient-track-anything` pins, sizes, Apache-2.0) and the package registers them with `ModelWeights.register` at import; cuvis-ai's `emit_metadata` projects the tuple into the manifest's `weights:` block. The SAM 2.1 variants stay explicit-path only (`model_dir` or the vendored `checkpoints/`), and tests guard that the variant table and the declarations agree. Floors `cuvis-ai-core>=0.17.0` (upgrade the plugins together with core) and `cuvis-ai-schemas>=0.12.0`.
+
 ## 0.4.0 - 2026-09-04
 
 - **EfficientTAM weights come from the `cubert-gmbh/efficient-track-anything` Hugging Face mirror through cuvis-ai-core's weight registry.** The cache lookup goes through `ModelWeights.resolve(<variant>, download=False)` (registry names `efficienttam_s`, `efficienttam_ti`, `efficienttam_s_512x512`, `efficienttam_ti_512x512`) instead of a `try_to_load_from_cache` call against `yunyangx/efficient-track-anything`, so the offline child finds the weights `download-model download <variant>` provisioned under `models--cubert-gmbh--efficient-track-anything`; the missing-assets error now carries core's own provisioning sentence. `_ModelSpec.hf_repo_id` is `weights_name`; the unreachable `build_efficienttam_hf` Hub builder is gone from the vendored package. Requires cuvis-ai-core 0.16.0. A cache under the old `models--yunyangx--efficient-track-anything` folder is not reused; the weights download once more.
