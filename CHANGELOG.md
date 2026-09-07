@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.5.0 - unreleased
+## 0.5.0 - 2026-09-07
 
 - `cuvis_ai_rtsam2/weights.py` declares the four EfficientTAM rows (`efficienttam_s` as the default with the `efficienttam` alias, `efficienttam_ti`, `efficienttam_s_512x512`, `efficienttam_ti_512x512`; picked by `model_type`, bypassed by `model_dir`; `cubert-gmbh/efficient-track-anything` pins, sizes, Apache-2.0) and the package registers them with `ModelWeights.register` at import; cuvis-ai's `emit_metadata` projects the tuple into the manifest's `weights:` block. The SAM 2.1 variants stay explicit-path only (`model_dir` or the vendored `checkpoints/`), and tests guard that the variant table and the declarations agree. Floors `cuvis-ai-core>=0.17.0` (upgrade the plugins together with core) and `cuvis-ai-schemas>=0.12.0`.
 
